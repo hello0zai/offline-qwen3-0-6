@@ -6,7 +6,6 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 block_cipher = None
 project_root = Path.cwd()
 
-# Gather required Transformers dependencies and metadata
 datas = [
     (str(project_root / 'model_weights'), 'model_weights'),
 ]
@@ -18,6 +17,20 @@ hidden_imports = [
     'torch',
     'accelerate',
     'safetensors',
+    'fastapi',
+    'uvicorn',
+    'uvicorn.logging',
+    'uvicorn.loops',
+    'uvicorn.loops.auto',
+    'uvicorn.loops.asyncio',
+    'uvicorn.protocols',
+    'uvicorn.protocols.http',
+    'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.http.h11_impl',
+    'uvicorn.lifespan',
+    'uvicorn.lifespan.on',
+    'h11',
+    'pydantic',
 ] + collect_submodules('transformers.models.qwen3')
 
 a = Analysis(
@@ -29,7 +42,15 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'matplotlib', 'tensorboard'],
+    excludes=[
+        'tkinter',
+        'matplotlib',
+        'tensorboard',
+        'notebook',
+        'IPython',
+        'PIL',
+        'cv2',
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -38,13 +59,12 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# --onedir mode is strongly recommended for ~1.5GB+ model/runtime bundles to eliminate long startup decompression times.
 exe = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name='QwenApp',
+    name='QwenTextSummarizer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -65,5 +85,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='QwenApp'
+    name='QwenTextSummarizer'
 )

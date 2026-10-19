@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "qwen3-local"
+version = "0.1.0"
+description = "Offline Qwen3-0.6B chatbot bundled with PyInstaller"
+authors = ["Local User"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+torch = ">=2.6,<3.0"
+transformers = ">=4.51.0,<5.0"
+accelerate = ">=1.0.0"
+huggingface-hub = ">=0.30.0"
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = ">=6.10,<7.0"
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"

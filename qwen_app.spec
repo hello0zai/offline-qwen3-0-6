@@ -1,56 +1,50 @@
+# build.spec
 # -*- mode: python ; coding: utf-8 -*-
-import sys
-from pathlib import Path
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
-project_root = Path.cwd()
 
-datas = [
-    (str(project_root / 'model_weights'), 'model_weights'),
-]
-datas += collect_data_files('transformers')
-datas += collect_data_files('torch')
-
-hidden_imports = [
-    'transformers',
-    'torch',
-    'accelerate',
-    'safetensors',
-    'fastapi',
-    'uvicorn',
-    'uvicorn.logging',
-    'uvicorn.loops',
-    'uvicorn.loops.auto',
-    'uvicorn.loops.asyncio',
-    'uvicorn.protocols',
-    'uvicorn.protocols.http',
-    'uvicorn.protocols.http.auto',
-    'uvicorn.protocols.http.h11_impl',
-    'uvicorn.lifespan',
-    'uvicorn.lifespan.on',
-    'h11',
-    'pydantic',
-] + collect_submodules('transformers.models.qwen3')
+torch_datas, torch_binaries, torch_hidden = collect_all("torch")
+transformers_datas, transformers_binaries, transformers_hidden = collect_all("transformers")
+rapidocr_datas, rapidocr_binaries, rapidocr_hidden = collect_all("rapidocr")
+onnx_datas, onnx_binaries, onnx_hidden = collect_all("onnxruntime")
 
 a = Analysis(
-    ['app/main.py'],
-    pathex=[str(project_root)],
-    binaries=[],
-    datas=datas,
-    hiddenimports=hidden_imports,
+    ["main.py"],
+    pathex=[],
+    binaries=torch_binaries + transformers_binaries + rapidocr_binaries + onnx_binaries,
+    datas=[
+        # Include the whole pre-downloaded model folder
+        ("models/Qwen3-0.6B", "models/Qwen3-0.6B"),
+    ] + torch_datas + transformers_datas + rapidocr_datas + onnx_datas,
+    hiddenimports=[
+        "uvicorn.logging",
+        "uvicorn.loops",
+        "uvicorn.loops.auto",
+        "uvicorn.protocols",
+        "uvicorn.protocols.http",
+        "uvicorn.protocols.http.auto",
+        "uvicorn.protocols.websockets",
+        "uvicorn.protocols.websockets.auto",
+        "uvicorn.lifespan",
+        "uvicorn.lifespan.on",
+        "fastapi",
+        "starlette",
+        "multipart",
+        "PIL",
+        "numpy",
+        "cv2",
+        "onnxruntime",
+        "rapidocr",
+        "transformers",
+        "torch",
+        "accelerate",
+    ] + torch_hidden + transformers_hidden + rapidocr_hidden + onnx_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        'tkinter',
-        'matplotlib',
-        'tensorboard',
-        'notebook',
-        'IPython',
-        'PIL',
-        'cv2',
-    ],
+    excludes=["tkinter", "matplotlib", "scipy", "pandas", "IPython", "jupyter"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -64,17 +58,12 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='QwenTextSummarizer',
+    name="ocr-summarizer",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,
+    upx=True,
     console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
 )
 
 coll = COLLECT(
@@ -83,7 +72,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=False,
+    upx=True,
     upx_exclude=[],
-    name='QwenTextSummarizer'
+    name="ocr-summarizer",
 )

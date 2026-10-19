@@ -11,7 +11,7 @@ rapidocr_datas, rapidocr_binaries, rapidocr_hidden = collect_all("rapidocr")
 onnx_datas, onnx_binaries, onnx_hidden = collect_all("onnxruntime")
 
 a = Analysis(
-    ["main.py"],
+    ["app/main.py"],
     pathex=[],
     binaries=torch_binaries + transformers_binaries + rapidocr_binaries + onnx_binaries,
     datas=[

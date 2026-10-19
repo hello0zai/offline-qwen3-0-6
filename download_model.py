@@ -12,6 +12,3 @@ snapshot_download(
     ignore_patterns=["*.msgpack", "*.h5", "*.ot"],  # optional cleanup
 )
 print("Download finished.")
-
-if __name__ == "__main__":
-    download()

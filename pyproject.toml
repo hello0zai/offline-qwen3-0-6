@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "RapidOCR + Qwen3-0.6B summarizer API"
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
-packages = [{include = "main.py"}]   # or put code in a package
+packages = [{include = "app/main.py"}]   # or put code in a package
 
 [tool.poetry.dependencies]
 python = "^3.10,<3.13"
@@ -17,6 +17,7 @@ torch = "^2.4.0"
 transformers = "^4.51.0"
 accelerate = "^1.0.0"
 pillow = "^10.0.0"
+onnx = "^1.23.2"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.11.0"

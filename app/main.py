@@ -65,9 +65,7 @@ Summary:"""
 
 
 class SummaryResponse(BaseModel):
-    ocr_text: str
     summary: str
-    ocr_lines: Optional[list] = None
 
 
 def extract_text_from_image(image_bytes: bytes) -> tuple[str, list]:
@@ -123,10 +121,8 @@ async def ocr_and_summarize(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
     if not ocr_text.strip():
-        return SummaryResponse(
-            ocr_text="",
-            summary="No text detected in the image.",
-            ocr_lines=[],
+        return SummaryResponse(           
+            summary="No text detected in the image."
         )
 
     try:
@@ -135,9 +131,7 @@ async def ocr_and_summarize(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Summarization failed: {str(e)}")
 
     return SummaryResponse(
-        ocr_text=ocr_text,
-        summary=summary,
-        ocr_lines=ocr_lines,
+        summary=summary
     )
 
 
@@ -152,4 +146,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=9999)
+    uvicorn.run(app, host="127.0.0.1", port=7601)

@@ -1,149 +1,36 @@
-# main.py
-import sys
-import os
-from pathlib import Path
+import argparse
+import logging 
 
-# ---------- Fix paths for PyInstaller ----------
-if getattr(sys, "frozen", False):
-    # Running as compiled executable
-    BASE_DIR = Path(sys._MEIPASS)
-else:
-    BASE_DIR = Path(__file__).resolve().parent
+from app.utils import setup_logging
+from app.ocr_event import ActiveEventWindowOCRText
 
-# Force all Hugging Face / Transformers caches inside the bundle
-os.environ["HF_HOME"] = str(BASE_DIR / "hf_cache")
-os.environ["TRANSFORMERS_CACHE"] = str(BASE_DIR / "hf_cache")
-os.environ["HF_HUB_OFFLINE"] = "1"          # force offline mode
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
+logger = logging.getLogger(__name__)
+    
+def main():
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from pydantic import BaseModel
-from rapidocr import RapidOCR
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from typing import Optional
+    parser = argparse.ArgumentParser(description="Imate to Text")
+    parser.add_argument("--server_url", required=False, help="URL to update ocr text")    
+    parser.add_argument("--user_id", required=str, help="User Id")
+    parser.add_argument("--company_id", required=str, help="Company Id")
+    parser.add_argument("--image_path", type=str, default="", help="Image path")
+    parser.add_argument("--event_id", type=int, default=0, help="Event ID")    
+    parser.add_argument("--timestamp", type=str, default="", help="Time Stamp")
+    parser.add_argument("--duration", type=str, default="", help="Duration")
 
-app = FastAPI(title="RapidOCR + Qwen3-0.6B Summarizer (Offline)")
+    args = parser.parse_args()
 
-# ---------- Local model path ----------
-MODEL_PATH = BASE_DIR / "models" / "Qwen3-0.6B"
+    # Set up logging
+    setup_logging("sd-ocr-event", log_file=True)
 
-if not MODEL_PATH.exists():
-    raise RuntimeError(f"Model not found at {MODEL_PATH}. Did you run download_models.py?")
+    ActiveEventWindowOCRText(
+        server_url=args.server_url,        
+        user_id=args.user_id,
+        company_id=args.company_id,
+        image_path= args.image_path,
+        event_id=args.event_id,
+        timestamp=args.timestamp,
+        duration= args.duration                
+    ).create_event_ocr()
 
-print(f"Loading model from: {MODEL_PATH}")
-
-# ---------- Load models once ----------
-ocr_engine = RapidOCR()
-
-tokenizer = AutoTokenizer.from_pretrained(
-    str(MODEL_PATH),
-    local_files_only=True,
-)
-
-model = AutoModelForCausalLM.from_pretrained(
-    str(MODEL_PATH),
-    torch_dtype="auto",
-    device_map="auto",
-    local_files_only=True,
-)
-model.eval()
-
-# ---------- Prompt ----------
-SUMMARY_PROMPT = """You are a helpful assistant that summarizes OCR-extracted text.
-
-Task: Create a clear, concise summary of the following text extracted from an image.
-- Keep the most important information (names, dates, numbers, key facts).
-- Remove noise, repeated characters, and OCR artifacts if possible.
-- Write the summary in the same language as the original text.
-- Maximum 3-5 sentences.
-
-OCR Text:
-{ocr_text}
-
-Summary:"""
-
-
-class SummaryResponse(BaseModel):
-    summary: str
-
-
-def extract_text_from_image(image_bytes: bytes) -> tuple[str, list]:
-    result = ocr_engine(image_bytes)
-    if result is None or result.txts is None or len(result.txts) == 0:
-        return "", []
-    lines = list(result.txts)
-    return "\n".join(lines), lines
-
-
-def summarize_with_qwen(text: str, max_new_tokens: int = 256) -> str:
-    if not text.strip():
-        return ""
-
-    prompt = SUMMARY_PROMPT.format(ocr_text=text)
-    messages = [{"role": "user", "content": prompt}]
-
-    text_input = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-        enable_thinking=False,
-    )
-
-    model_inputs = tokenizer([text_input], return_tensors="pt").to(model.device)
-
-    with torch.no_grad():
-        generated_ids = model.generate(
-            **model_inputs,
-            max_new_tokens=max_new_tokens,
-            temperature=0.7,
-            top_p=0.8,
-            top_k=20,
-            do_sample=True,
-        )
-
-    output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
-    return tokenizer.decode(output_ids, skip_special_tokens=True).strip()
-
-
-@app.post("/ocr-summarize", response_model=SummaryResponse)
-async def ocr_and_summarize(file: UploadFile = File(...)):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-
-    image_bytes = await file.read()
-    if not image_bytes:
-        raise HTTPException(status_code=400, detail="Empty file")
-
-    try:
-        ocr_text, ocr_lines = extract_text_from_image(image_bytes)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
-
-    if not ocr_text.strip():
-        return SummaryResponse(           
-            summary="No text detected in the image."
-        )
-
-    try:
-        summary = summarize_with_qwen(ocr_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Summarization failed: {str(e)}")
-
-    return SummaryResponse(
-        summary=summary
-    )
-
-
-@app.get("/health")
-async def health():
-    return {
-        "status": "ok",
-        "model": str(MODEL_PATH),
-        "offline": True,
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=7601)
+if __name__ == '__main__':
+    main()
